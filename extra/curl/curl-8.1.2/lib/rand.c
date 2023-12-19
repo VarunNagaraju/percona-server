@@ -255,12 +255,11 @@ CURLcode Curl_rand_hex(struct Curl_easy *data, unsigned char *rnd,
     return result;
 
   while(num) {
-    /* clang-tidy warns on this line without this comment: */
-    /* NOLINTNEXTLINE(clang-analyzer-core.UndefinedBinaryOperatorResult) */
-    *rnd++ = hex[(*bufp & 0xF0)>>4];
-    *rnd++ = hex[*bufp & 0x0F];
-    bufp++;
-    num -= 2;
+  /* clang-tidy warns on this line without this comment: */
+  *rnd++ = hex[(*bufp & 0xF0)>>4];
+  *rnd++ = hex[*bufp & 0x0F];
+  bufp++;
+  num -= 2;
   }
   *rnd = 0;
 
