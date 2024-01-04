@@ -3,6 +3,11 @@ run-name: GitHub Actions for clang-tidy
 
 on: pull_request
 
+env:
+  UBUNTU_CODE_NAME: jammy
+  COMPILER_VERSION: 17
+  BOOST_VERSION: 1_77_0
+
 jobs:
   clang-tidy:
     runs-on: ubuntu-22.04
@@ -18,18 +23,30 @@ jobs:
           git fetch --no-tags --no-recurse-submodules upstream "${{ github.event.pull_request.base.ref }}"
           git submodule update --init --recursive
 
-      - name: Install clang-tidy
+      - name: Install dependencies and clang-tidy
         run: |
+          curl -sSL "http://apt.llvm.org/llvm-snapshot.gpg.key" | sudo -E apt-key add -
+          echo "deb http://apt.llvm.org/${UBUNTU_CODE_NAME}/ llvm-toolchain-${UBUNTU_CODE_NAME}-${COMPILER_VERSION} main" | sudo tee -a /etc/apt/sources.list > /dev/null
           sudo apt-get update
-          sudo apt-get install -y clang clang-tidy libldap2-dev curl libcurl4-openssl-dev bison libudev-dev libkrb5-dev
+          sudo apt-get install -y clang-17 clang-tidy libldap2-dev curl libcurl4-openssl-dev bison libudev-dev libkrb5-dev libreadline-dev zlib1g-dev liblz4-dev \
+          libedit-dev libevent-dev protobuf-compiler libprotobuf-dev libprotoc-dev libfido2-dev
+
+      - name: Cache boost
+        id: cache-boost
+        uses: actions/cache@v3
+        with:
+          path: ~/my_boost
+          key: ${{ runner.os }}-boost-${BOOST_VERSION}
+
+      # - name: Download boost library
+      #   if: steps.cache-boost.outputs.cache-hit != 'true'
+      #   run: wget --progress=dot:giga -P ~/my_boost/ "http://downloads.sourceforge.net/boost/boost/${BOOST_VERSION//_/.}/boost_${BOOST_VERSION}.tar.gz"
 
       - name: Prepare compile_commands.json
         run: |
-          cmake -B build -DCMAKE_INSTALL_PREFIX=../install -DWITH_DEBUG=1 -DDOWNLOAD_BOOST=1 -DWITH_BOOST=my_boost \
-          -DWITH_ZLIB=bundled -DWITH_SSL=system -DWITH_AUTHENTICATION_LDAP=0 -DWITH_LZ4=bundled \
-          -WITH_KEYRING_VAULT=ON -DWITH_ROCKSDB=0 -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \
-          -DWITH_PROTOBUF=bundled -DWITH_LIBEVENT=bundled -DWITH_EDITLINE=bundled -DWITH_ZSTD=bundled WITH_CURL=/usr/bin/curl \
-          -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -DWITH_SYSTEM_LIBS=1 -DWITH_PROTOBUF=bundled -DWITH_FIDO=bundled ${{ github.workspace }}
+          cmake -B ../debug-build -DCMAKE_INSTALL_PREFIX=../install -DCMAKE_BUILD_TYPE=Debug -DDOWNLOAD_BOOST=ON -DWITH_BOOST=~/my_boost \
+          -DWITH_SSL=system -DWITH_AUTHENTICATION_LDAP=0 -WITH_KEYRING_VAULT=ON -DWITH_ROCKSDB=0 -DCMAKE_C_COMPILER=clang-17 -DCMAKE_CXX_COMPILER=clang++-17 \
+          -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DWITH_SYSTEM_LIBS=ON ${{ github.workspace }}
 
       - name: Create results directory
         run: |
@@ -40,7 +57,7 @@ jobs:
         continue-on-error: true
         run: |
           git diff --name-only --diff-filter=ACRM "$(git merge-base HEAD "upstream/${{ github.event.pull_request.base.ref }}")" | \
-          grep -Ee "\.([ch](pp)|(cc|hh)|[i](c|h)|(cxx)|[chi])$" | xargs clang-tidy -p build --checks=-readability-* -export-fixes clang-tidy-result/fixes.yml
+          grep -Ee "\.([ch](pp)|(cc|hh)|[i](c|h)|(cxx)|[chi])$" | xargs clang-tidy -p ../debug-build --checks=-readability-* -export-fixes clang-tidy-result/fixes.yml
 
       - name: Run clang-tidy-pr-comments action
         uses: platisd/clang-tidy-pr-comments@v1
