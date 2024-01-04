@@ -25,11 +25,11 @@ jobs:
 
       - name: Prepare compile_commands.json
         run: |
-          cmake -B build -DCMAKE_INSTALL_PREFIX=../install -DWITH_DEBUG=1 -DDOWNLOAD_BOOST=1 -DWITH_BOOST=my_boost \
+          cmake -B ../debug-build -DCMAKE_INSTALL_PREFIX=../install -DCMAKE_BUILD_TYPE=Debug -DDOWNLOAD_BOOST=ON -DWITH_BOOST=../my_boost \
           -DWITH_ZLIB=bundled -DWITH_SSL=system -DWITH_AUTHENTICATION_LDAP=0 -DWITH_LZ4=bundled \
           -WITH_KEYRING_VAULT=ON -DWITH_ROCKSDB=0 -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \
-          -DWITH_PROTOBUF=bundled -DWITH_LIBEVENT=bundled -DWITH_EDITLINE=bundled -DWITH_ZSTD=bundled WITH_CURL=/usr/bin/curl \
-          -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -DWITH_SYSTEM_LIBS=1 -DWITH_PROTOBUF=bundled -DWITH_FIDO=bundled ${{ github.workspace }}
+          -DWITH_PROTOBUF=bundled -DWITH_LIBEVENT=bundled -DWITH_EDITLINE=bundled -DWITH_ZSTD=bundled \
+          -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DWITH_SYSTEM_LIBS=ON -DWITH_PROTOBUF=bundled -DWITH_FIDO=bundled ${{ github.workspace }}
 
       - name: Create results directory
         run: |
@@ -40,7 +40,7 @@ jobs:
         continue-on-error: true
         run: |
           git diff --name-only --diff-filter=ACRM "$(git merge-base HEAD "upstream/${{ github.event.pull_request.base.ref }}")" | \
-          grep -Ee "\.([ch](pp)|(cc|hh)|[i](c|h)|(cxx)|[chi])$" | xargs clang-tidy -p build --checks=-readability-* -export-fixes clang-tidy-result/fixes.yml
+          grep -Ee "\.([ch](pp)|(cc|hh)|[i](c|h)|(cxx)|[chi])$" | xargs clang-tidy -p ../debug-build --checks=-readability-* -export-fixes clang-tidy-result/fixes.yml
 
       - name: Run clang-tidy-pr-comments action
         uses: platisd/clang-tidy-pr-comments@v1
