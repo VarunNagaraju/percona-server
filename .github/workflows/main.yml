@@ -30,9 +30,16 @@ jobs:
           sudo apt-get install -y clang-17 clang-tidy libldap2-dev curl libcurl4-openssl-dev bison libudev-dev libkrb5-dev libreadline-dev zlib1g-dev liblz4-dev \
           libedit-dev libevent-dev protobuf-compiler libprotobuf-dev libprotoc-dev libfido2-dev
 
+      - name: Cache boost
+        id: cache-boost
+        uses: actions/cache@v3
+        with:
+          path: /home/my_boost
+          key: ${{ runner.os }}-boost
+
       - name: Prepare compile_commands.json
         run: |
-          cmake -B ../debug-build -DCMAKE_INSTALL_PREFIX=../install -DCMAKE_BUILD_TYPE=Debug -DDOWNLOAD_BOOST=ON -DWITH_BOOST=../my_boost \
+          cmake -B ../debug-build -DCMAKE_INSTALL_PREFIX=../install -DCMAKE_BUILD_TYPE=Debug -DDOWNLOAD_BOOST=ON -DWITH_BOOST=/home/my_boost \
           -DWITH_SSL=system -DWITH_AUTHENTICATION_LDAP=0 -WITH_KEYRING_VAULT=ON -DWITH_ROCKSDB=0 -DCMAKE_C_COMPILER=clang-17 -DCMAKE_CXX_COMPILER=clang++-17 \
           -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DWITH_SYSTEM_LIBS=ON ${{ github.workspace }}
 
