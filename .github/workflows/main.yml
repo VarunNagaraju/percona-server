@@ -6,6 +6,7 @@ on: pull_request
 env:
   UBUNTU_CODE_NAME: jammy
   COMPILER_VERSION: 17
+  BOOST_VERSION: 1_77_0
 
 jobs:
   clang-tidy:
@@ -34,12 +35,16 @@ jobs:
         id: cache-boost
         uses: actions/cache@v3
         with:
-          path: /home/my_boost
+          path: ~/my_boost
           key: ${{ runner.os }}-boost
+
+      - name: Download boost library
+        if: steps.cache-boost.outputs.cache-hit != 'true'
+        run: wget --progress=dot:giga -O ~/my_boost/"boost_${BOOST_VERSION}.tar.gz" "http://downloads.sourceforge.net/boost/boost/${BOOST_VERSION//_/.}/boost_${BOOST_VERSION}.tar.gz"
 
       - name: Prepare compile_commands.json
         run: |
-          cmake -B ../debug-build -DCMAKE_INSTALL_PREFIX=../install -DCMAKE_BUILD_TYPE=Debug -DDOWNLOAD_BOOST=ON -DWITH_BOOST=/home/my_boost \
+          cmake -B ../debug-build -DCMAKE_INSTALL_PREFIX=../install -DCMAKE_BUILD_TYPE=Debug -DWITH_BOOST=~/my_boost \
           -DWITH_SSL=system -DWITH_AUTHENTICATION_LDAP=0 -WITH_KEYRING_VAULT=ON -DWITH_ROCKSDB=0 -DCMAKE_C_COMPILER=clang-17 -DCMAKE_CXX_COMPILER=clang++-17 \
           -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DWITH_SYSTEM_LIBS=ON ${{ github.workspace }}
 
