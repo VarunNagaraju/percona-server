@@ -16,12 +16,13 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
+          submodules: 'recursive'
 
       - name: Fetch base branch
         run: |
           git remote add upstream "https://github.com/${{ github.event.pull_request.base.repo.full_name }}"
           git fetch --no-tags --no-recurse-submodules upstream "${{ github.event.pull_request.base.ref }}"
-          git submodule update --init --recursive
+          # git submodule update --init --recursive
 
       - name: Install dependencies and clang-tidy
         run: |
@@ -37,10 +38,6 @@ jobs:
         with:
           path: ~/my_boost
           key: ${{ runner.os }}-boost-${{ env.BOOST_VERSION }}
-
-      # - name: Download boost library
-      #   if: steps.cache-boost.outputs.cache-hit != 'true'
-      #   run: wget --progress=dot:giga -P ~/my_boost/ "http://downloads.sourceforge.net/boost/boost/${BOOST_VERSION//_/.}/boost_${BOOST_VERSION}.tar.gz"
 
       - name: Prepare compile_commands.json
         run: |
