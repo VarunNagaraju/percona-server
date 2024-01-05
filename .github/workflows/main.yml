@@ -36,7 +36,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ~/my_boost
-          key: ${{ runner.os }}-boost-${BOOST_VERSION}
+          key: ${{ runner.os }}-boost-${{ env.BOOST_VERSION }}
 
       # - name: Download boost library
       #   if: steps.cache-boost.outputs.cache-hit != 'true'
