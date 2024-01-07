@@ -1,0 +1,64 @@
+name: Static analysis
+run-name: GitHub Actions for clang-tidy
+
+on: pull_request
+
+env:
+  UBUNTU_CODE_NAME: jammy
+  COMPILER_VERSION: 17
+  BOOST_VERSION: 1_77_0
+
+jobs:
+  clang-tidy:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          submodules: 'recursive'
+
+      - name: Fetch base branch
+        run: |
+          git fetch --no-tags --no-recurse-submodules origin "${{ github.event.pull_request.base.ref }}"
+
+      - name: Install dependencies and clang-tidy
+        run: |
+          curl -sSL "http://apt.llvm.org/llvm-snapshot.gpg.key" | sudo -E apt-key add -
+          echo "deb http://apt.llvm.org/${UBUNTU_CODE_NAME}/ llvm-toolchain-${UBUNTU_CODE_NAME}-${COMPILER_VERSION} main" | sudo tee -a /etc/apt/sources.list > /dev/null
+          sudo apt-get update
+          sudo apt-get install -y clang-${COMPILER_VERSION} clang-tidy-${COMPILER_VERSION} libldap2-dev curl libcurl4-openssl-dev bison libudev-dev libkrb5-dev libreadline-dev zlib1g-dev liblz4-dev \
+          libedit-dev libevent-dev protobuf-compiler libprotobuf-dev libprotoc-dev libfido2-dev libldap2-dev libsasl2-dev libsasl2-modules
+
+      - name: Cache boost
+        id: cache-boost
+        uses: actions/cache@v3
+        with:
+          path: ~/my_boost
+          key: ${{ runner.os }}-boost-${{ env.BOOST_VERSION }}
+
+      - name: Prepare compile_commands.json
+        run: |
+          cmake -B ../debug-build -DCMAKE_INSTALL_PREFIX=../install -DCMAKE_BUILD_TYPE=Debug -DDOWNLOAD_BOOST=ON -DWITH_BOOST=~/my_boost -DWITH_SSL=system \
+          -DWITH_AUTHENTICATION_LDAP=ON -DWITH_KEYRING_VAULT=ON -DWITH_ROCKSDB=ON -DCMAKE_C_COMPILER=clang-${COMPILER_VERSION} -DCMAKE_CXX_COMPILER=clang++-${COMPILER_VERSION} \
+          -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DWITH_SYSTEM_LIBS=ON ${{ github.workspace }}
+
+      - name: Create results directory
+        run: |
+          mkdir clang-tidy-result
+
+      - name: Analyze
+        # Don't disable push/merge option in the PR even if there are unfixed warnings.
+        continue-on-error: true
+        run: |
+          # git diff --name-only --diff-filter=ACRM "$(git merge-base HEAD "origin/${{ github.event.pull_request.base.ref }}")" | \
+          # grep -Ee "\.([ch](pp)|(cc|hh)|[i](c|h)|(cxx)|[chi])$" | xargs clang-tidy -p ../debug-build --checks=-readability-* -export-fixes clang-tidy-result/fixes.yml
+          git diff -U0 "$(git merge-base HEAD "origin/${{ github.event.pull_request.base.ref }}")" | clang-tidy-diff-17.py -p1 -path ../debug-build -export-fixes clang-tidy-result/fixes.yml
+
+      - name: Run clang-tidy-pr-comments action
+        uses: platisd/clang-tidy-pr-comments@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          clang_tidy_fixes: clang-tidy-result/fixes.yml
+          request_changes: true
+          suggestions_per_comment: 10
