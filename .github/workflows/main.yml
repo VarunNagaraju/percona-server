@@ -21,7 +21,8 @@ jobs:
 
       - name: Fetch base branch
         run: |
-          git fetch --no-tags --no-recurse-submodules origin "${{ github.event.pull_request.base.ref }}"
+          git remote add target "https://github.com/${{ github.event.pull_request.base.repo.full_name }}"
+          git fetch --no-tags --no-recurse-submodules target "${{ github.event.pull_request.base.ref }}"
 
       - name: Install dependencies and clang-tidy
         run: |
@@ -59,7 +60,7 @@ jobs:
         # Don't disable push/merge option in the PR even if there are unfixed warnings.
         continue-on-error: true
         run: |
-          git diff -U0 "$(git merge-base HEAD "origin/${{ github.event.pull_request.base.ref }}")" | clang-tidy-diff-${COMPILER_VERSION}.py -p1 -path ../debug-build -export-fixes clang-tidy-result/fixes.yml
+          git diff -U0 "$(git merge-base HEAD "target/${{ github.event.pull_request.base.ref }}")" | clang-tidy-diff-${COMPILER_VERSION}.py -p1 -path ../debug-build -export-fixes clang-tidy-result/fixes.yml
 
       - name: Run clang-tidy-pr-comments action
         uses: platisd/clang-tidy-pr-comments@v1
