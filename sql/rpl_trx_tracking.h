@@ -28,6 +28,7 @@
 #include <sys/types.h>
 #include <atomic>
 #include <unordered_map>
+#include <memory_resource>
 
 #include "mysql/binlog/event/binlog_event.h"
 
@@ -137,8 +138,14 @@ class Commit_order_trx_dependency_tracker {
 */
 class Writeset_trx_dependency_tracker {
  public:
-  Writeset_trx_dependency_tracker(ulong max_history_size)
-      : m_opt_max_history_size(max_history_size), m_writeset_history_start(0) {}
+  Writeset_trx_dependency_tracker(ulong max_history_size, bool is_relay_log)
+      : m_opt_max_history_size(max_history_size), m_writeset_history_start(0) {
+    if (!is_relay_log) {
+      m_memory_arena.emplace(4 * 16 * m_opt_max_history_size);
+      resource.emplace(m_memory_arena->data(), m_memory_arena->size());
+      m_writeset_history.emplace(m_opt_max_history_size, &resource.value());
+    }
+  }
 
   /**
     Main function that gets the dependencies using the WRITESET tracker.
@@ -170,8 +177,10 @@ class Writeset_trx_dependency_tracker {
     Track the last transaction sequence number that changed each row
     in the database, using row hashes from the writeset as the index.
   */
-  typedef std::unordered_map<uint64, int64> Writeset_history;
-  Writeset_history m_writeset_history;
+  std::optional<std::vector<char>> m_memory_arena;
+  std::optional<std::pmr::monotonic_buffer_resource> resource;
+  typedef std::pmr::unordered_map<uint64, int64> Writeset_history;
+  std::optional<Writeset_history> m_writeset_history;
 };
 
 /**
@@ -181,7 +190,7 @@ class Writeset_trx_dependency_tracker {
 */
 class Transaction_dependency_tracker {
  public:
-  Transaction_dependency_tracker() : m_writeset(25000) {}
+  Transaction_dependency_tracker(bool is_relay_log) : m_writeset(25000, is_relay_log) {}
 
   void get_dependency(THD *thd, int64 &sequence_number, int64 &commit_parent);
 

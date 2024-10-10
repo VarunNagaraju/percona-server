@@ -3686,6 +3686,7 @@ MYSQL_BIN_LOG::MYSQL_BIN_LOG(uint *sync_period, bool relay_log)
       is_relay_log(relay_log),
       checksum_alg_reset(mysql::binlog::event::BINLOG_CHECKSUM_ALG_UNDEF),
       relay_log_checksum_alg(mysql::binlog::event::BINLOG_CHECKSUM_ALG_UNDEF),
+      m_dependency_tracker(is_relay_log),
       previous_gtid_set_relaylog(nullptr),
       snapshot_lock_acquired(false),
       is_rotating_caused_by_incident(false) {
