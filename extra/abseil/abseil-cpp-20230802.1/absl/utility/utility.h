@@ -41,6 +41,7 @@
 #define ABSL_UTILITY_UTILITY_H_
 
 #include <cstddef>
+#include <cstdint>
 #include <cstdlib>
 #include <tuple>
 #include <utility>
